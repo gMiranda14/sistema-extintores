@@ -21,22 +21,33 @@ def criar_tabelas():
             forma_pagamento TEXT,
             ultimo_valor REAL
         );
-        CREATE TABLE IF NOT EXISTS extintor (
+
+        CREATE TABLE IF NOT EXISTS equipamento (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             cliente_id INTEGER NOT NULL REFERENCES cliente(id),
-            tipo TEXT,
+            tipo TEXT NOT NULL,
+            descricao TEXT,
             capacidade TEXT,
             numero_serie TEXT,
-            ultima_manutencao TEXT
+            data_referencia TEXT
         );
+
         CREATE TABLE IF NOT EXISTS pagamento (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             cliente_id INTEGER NOT NULL REFERENCES cliente(id),
-            valor REAL NOT NULL,
             forma TEXT,
             data_vencimento TEXT,
             data_pagamento TEXT,
-            status TEXT DEFAULT 'pendente',
             numero_nf TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS item_pagamento (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pagamento_id INTEGER NOT NULL REFERENCES pagamento(id),
+            equipamento_id INTEGER REFERENCES equipamento(id),
+            tipo_servico TEXT NOT NULL,
+            descricao TEXT,
+            quantidade INTEGER DEFAULT 1,
+            valor_unitario REAL NOT NULL
         );
         """)
