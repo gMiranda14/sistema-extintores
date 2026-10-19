@@ -17,6 +17,9 @@ CAMPOS = [
 CHAVES = [chave for chave, _ in CAMPOS]
 FORMAS = ["Dinheiro", "PIX", "Boleto", "Cartão de débito", "Cartão de crédito"]
 PLACEHOLDERS = {"CPF": "000.000.000-00", "CNPJ": "00.000.000/0000-00"}
+ICONE_EDITAR = "✎"
+ICONE_EXCLUIR = "🗑"
+ICONES_TEXTO = f"{ICONE_EDITAR}        {ICONE_EXCLUIR}"
 
 
 class FormularioCliente(ctk.CTkFrame):
@@ -220,6 +223,7 @@ class JanelaEdicao(ctk.CTkToplevel):
 class TelaClientes(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
+        self.janela_edicao = None
         self._montar_cadastro()
         self._montar_lista()
         self.carregar_lista()
@@ -243,9 +247,7 @@ class TelaClientes(ctk.CTkFrame):
 
     def _montar_lista(self):
         ctk.CTkLabel(
-            self,
-            text="Clientes cadastrados (clique em um cliente para editar)",
-            font=("Arial", 16, "bold"),
+            self, text="Clientes cadastrados", font=("Arial", 16, "bold")
         ).pack(anchor="w", padx=15)
 
         self.busca = ctk.CTkEntry(self, placeholder_text="Buscar por nome...")
@@ -259,7 +261,7 @@ class TelaClientes(ctk.CTkFrame):
         estilo.theme_use("default")
         estilo.configure(
             "Treeview", background="#2b2b2b", foreground="white",
-            fieldbackground="#2b2b2b", rowheight=26, borderwidth=0,
+            fieldbackground="#2b2b2b", rowheight=28, borderwidth=0,
         )
         estilo.configure(
             "Treeview.Heading", background="#3a3a3a", foreground="white", relief="flat"
@@ -272,6 +274,7 @@ class TelaClientes(ctk.CTkFrame):
             "telefone": "Telefone",
             "forma": "Forma de pagamento",
             "valor": "Último valor",
+            "acoes": "Ações",
         }
         self.tabela = ttk.Treeview(
             quadro, columns=list(titulos), show="headings", selectmode="browse"
@@ -279,13 +282,18 @@ class TelaClientes(ctk.CTkFrame):
         for coluna, texto in titulos.items():
             self.tabela.heading(coluna, text=texto)
             self.tabela.column(coluna, width=150)
+        self.tabela.column("acoes", width=110, anchor="center", stretch=False)
 
         barra = ttk.Scrollbar(quadro, orient="vertical", command=self.tabela.yview)
         self.tabela.configure(yscrollcommand=barra.set)
         self.tabela.pack(side="left", fill="both", expand=True)
         barra.pack(side="right", fill="y")
-        self.tabela.bind("<<TreeviewSelect>>", self._ao_selecionar)
 
+        self.tabela.bind("<Button-1>", self._ao_clicar)
+        self.tabela.bind("<Motion>", self._ao_mover)
+        self.tabela.bind("<Double-1>", self._ao_duplo_clique)
+
+    # ---------- Lista ----------
     def carregar_lista(self):
         for item in self.tabela.get_children():
             self.tabela.delete(item)
@@ -293,16 +301,64 @@ class TelaClientes(ctk.CTkFrame):
             valor_txt = f"R$ {valor:.2f}".replace(".", ",") if valor is not None else ""
             self.tabela.insert(
                 "", "end", iid=str(id_),
-                values=(nome, cpf, telefone, forma, valor_txt),
+                values=(nome, cpf, telefone, forma, valor_txt, ICONES_TEXTO),
             )
 
-    def _ao_selecionar(self, evento=None):
-        selecao = self.tabela.selection()
-        if not selecao:
+    # ---------- Cliques na tabela ----------
+    def _celula_acao(self, evento):
+        """Se o clique caiu na coluna Ações, devolve (iid, 'editar' ou 'excluir')."""
+        if self.tabela.identify_region(evento.x, evento.y) != "cell":
+            return None
+        ultima_coluna = f"#{len(self.tabela['columns'])}"
+        coluna = self.tabela.identify_column(evento.x)
+        if coluna != ultima_coluna:
+            return None
+        iid = self.tabela.identify_row(evento.y)
+        if not iid:
+            return None
+        x0, _, largura, _ = self.tabela.bbox(iid, coluna)
+        lado = "editar" if evento.x < x0 + largura / 2 else "excluir"
+        return iid, lado
+
+    def _ao_clicar(self, evento):
+        acao = self._celula_acao(evento)
+        if acao is None:
             return
-        id_cliente = int(selecao[0])
-        self.tabela.selection_remove(selecao)
-        JanelaEdicao(self, id_cliente, self.carregar_lista)
+        iid, lado = acao
+        if lado == "editar":
+            self._abrir_edicao(int(iid))
+        else:
+            self._excluir(int(iid))
+
+    def _ao_mover(self, evento):
+        self.tabela.configure(cursor="hand2" if self._celula_acao(evento) else "")
+
+    def _ao_duplo_clique(self, evento):
+        if self._celula_acao(evento) is not None:
+            return
+        iid = self.tabela.identify_row(evento.y)
+        if iid:
+            self._abrir_edicao(int(iid))
+
+    # ---------- Ações ----------
+    def _abrir_edicao(self, id_cliente):
+        if self.janela_edicao is not None and self.janela_edicao.winfo_exists():
+            return
+        self.janela_edicao = JanelaEdicao(self, id_cliente, self.carregar_lista)
+
+    def _excluir(self, id_cliente):
+        nome = str(self.tabela.item(str(id_cliente))["values"][0])
+        if not messagebox.askyesno("Confirmar", f"Excluir o cliente '{nome}'?"):
+            return
+        try:
+            cliente.excluir(id_cliente)
+        except sqlite3.IntegrityError:
+            messagebox.showerror(
+                "Não foi possível excluir",
+                "Este cliente tem equipamentos ou pagamentos cadastrados.",
+            )
+            return
+        self.carregar_lista()
 
     def salvar(self):
         dados = self.formulario.ler()
