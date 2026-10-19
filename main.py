@@ -12,4 +12,4 @@ app.geometry("1000x650")
 tela = TelaClientes(app)
 tela.pack(fill="both", expand=True, padx=10, pady=10)
 
-app.mainloop
+app.mainloop()
