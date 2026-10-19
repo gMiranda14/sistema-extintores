@@ -54,3 +54,28 @@ def normalizar_telefone(texto):
 
 def email_valido(texto):
     return re.fullmatch(r"[\w.+-]+@[\w-]+(\.[\w-]+)+", texto) is not None
+
+MASCARA_CPF = "###.###.###-##"
+MASCARA_CNPJ = "##.###.###/####-##"
+
+
+def aplicar_mascara(valor, modelo):
+    saida = ""
+    i = 0
+    for caractere in modelo:
+        if i >= len(valor):
+            break
+        if caractere == "#":
+            saida += valor[i]
+            i += 1
+        else:
+            saida += caractere
+    return saida
+
+
+def mascarar_documento(texto, tipo):
+    if tipo == "CPF":
+        limpo = re.sub(r"\D", "", texto)[:11]
+        return aplicar_mascara(limpo, MASCARA_CPF)
+    limpo = re.sub(r"[^0-9A-Za-z]", "", texto).upper()[:14]
+    return aplicar_mascara(limpo, MASCARA_CNPJ)
