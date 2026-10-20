@@ -36,8 +36,9 @@ def listar(busca=""):
                FROM equipamento e
                JOIN cliente c ON c.id = e.cliente_id
                WHERE c.nome LIKE ?
+                  OR COALESCE(e.numero_serie, '') LIKE ?
                ORDER BY c.nome, e.tipo""",
-            (f"%{busca}%",),
+            (f"%{busca}%", f"%{busca}%"),
         )
         return cursor.fetchall()
 

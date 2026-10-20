@@ -1,5 +1,5 @@
 from banco.conexao import conectar
-
+import re
 def inserir(dados):
     with conectar() as conn:
         conn.execute(
@@ -26,13 +26,15 @@ def excluir(id_cliente):
 
 
 def listar(busca=""):
+    busca_documento = re.sub(r"[.\-/\s]", "", busca)
     with conectar() as conn:
         cursor = conn.execute(
             """SELECT id, nome, cpf_cnpj, telefone, forma_pagamento, ultimo_valor
                FROM cliente
                WHERE nome LIKE ?
+                  OR REPLACE(REPLACE(REPLACE(COALESCE(cpf_cnpj, ''), '.', ''), '-', ''), '/', '') LIKE ?
                ORDER BY nome""",
-            (f"%{busca}%",),
+            (f"%{busca}%", f"%{busca_documento}%"),
         )
         return cursor.fetchall()
 

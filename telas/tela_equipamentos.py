@@ -199,7 +199,7 @@ class TelaEquipamentos(ctk.CTkFrame):
             self, text="Equipamentos cadastrados", font=("Arial", 16, "bold")
         ).pack(anchor="w", padx=15)
 
-        self.busca = ctk.CTkEntry(self, placeholder_text="Buscar por nome do cliente...")
+        self.busca = ctk.CTkEntry(self, placeholder_text="Buscar por cliente ou nº de série...")
         self.busca.pack(fill="x", padx=15, pady=5)
         self.busca.bind("<KeyRelease>", lambda evento: self.carregar_lista())
 
