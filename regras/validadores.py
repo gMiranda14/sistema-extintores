@@ -79,3 +79,11 @@ def mascarar_documento(texto, tipo):
         return aplicar_mascara(limpo, MASCARA_CPF)
     limpo = re.sub(r"[^0-9A-Za-z]", "", texto).upper()[:14]
     return aplicar_mascara(limpo, MASCARA_CNPJ)
+
+
+MASCARA_DATA = "##/##/####"
+
+
+def mascarar_data(texto):
+    limpo = re.sub(r"\D", "", texto)[:8]
+    return aplicar_mascara(limpo, MASCARA_DATA)

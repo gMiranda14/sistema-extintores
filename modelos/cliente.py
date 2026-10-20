@@ -45,3 +45,7 @@ def buscar_por_id(id_cliente):
             (id_cliente,),
         )
         return cursor.fetchone()
+
+def listar_nomes():
+    with conectar() as conn:
+        return conn.execute("SELECT id, nome FROM cliente ORDER BY nome").fetchall()
