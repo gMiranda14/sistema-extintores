@@ -65,10 +65,20 @@ class FormularioEquipamento(ctk.CTkFrame):
         atual = self.campo_cliente.get()
         self.rotulo_para_id = {}
         self.id_para_rotulo = {}
-        for id_, nome in cliente.listar_nomes():
-            rotulo = f"{nome} (nº {id_})"
+        clientes = cliente.listar_nomes()
+
+        repeticoes = {}
+        for _, nome in clientes:
+            repeticoes[nome] = repeticoes.get(nome, 0) + 1
+
+        for id_, nome in clientes:
+            if repeticoes[nome] > 1:
+                rotulo = f"{nome} (nº {id_})"
+            else:
+                rotulo = nome
             self.rotulo_para_id[rotulo] = id_
             self.id_para_rotulo[id_] = rotulo
+
         self.campo_cliente.configure(values=list(self.rotulo_para_id))
         if atual not in self.rotulo_para_id:
             self.campo_cliente.set("")
