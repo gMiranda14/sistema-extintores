@@ -1,4 +1,7 @@
+import re
 import sqlite3
+import tkinter as tk
+import unicodedata
 from datetime import date
 from tkinter import ttk, messagebox
 import customtkinter as ctk
@@ -9,6 +12,190 @@ TIPOS = {"Extintor": "extintor", "Mangueira": "mangueira"}
 NOMES_TIPO = {valor: nome for nome, valor in TIPOS.items()}
 ICONES_TEXTO = "✎        🗑"
 
+def _normalizar(texto):
+    decomposto = unicodedata.normalize("NFD", texto)
+    sem_acento = "".join(c for c in decomposto if unicodedata.category(c) != "Mn")
+    return sem_acento.lower()
+
+
+class SeletorCliente(ctk.CTkFrame):
+    """Campo com busca: digite parte do nome ou do CPF/CNPJ e escolha na lista."""
+
+    def __init__(self, master):
+        super().__init__(master, fg_color="transparent")
+        self.itens = []  # (rótulo, nome sem acento, documento só com números)
+        self.popup = None
+        self.lista = None
+        self.columnconfigure(0, weight=1)
+
+        self.entrada = ctk.CTkEntry(
+            self, placeholder_text="Digite o nome ou o CPF/CNPJ..."
+        )
+        self.entrada.grid(row=0, column=0, sticky="ew")
+        self.botao = ctk.CTkButton(
+            self, text="▼", width=32, command=self._alternar_lista
+        )
+        self.botao.grid(row=0, column=1, padx=(4, 0))
+
+        self.entrada.bind("<KeyRelease>", self._ao_digitar)
+        self.entrada.bind("<Down>", lambda e: self._mover(1))
+        self.entrada.bind("<Up>", lambda e: self._mover(-1))
+        self.entrada.bind("<Return>", self._confirmar)
+        self.entrada.bind("<Escape>", lambda e: self._fechar())
+        self.entrada.bind("<FocusOut>", lambda e: self.after(200, self._fechar_sem_foco))
+
+        janela = self.winfo_toplevel()
+        janela.bind("<Button-1>", self._clique_fora, add="+")
+        janela.bind("<Configure>", self._janela_mexeu, add="+")
+
+    # ---------- Interface usada pelo formulário ----------
+    def carregar(self, itens):
+        """itens = lista de (rótulo, nome, documento)."""
+        self.itens = [
+            (rotulo, _normalizar(nome), re.sub(r"[^0-9a-z]", "", doc.lower()))
+            for rotulo, nome, doc in itens
+        ]
+
+    def get(self):
+        return self.entrada.get()
+
+    def set(self, texto):
+        self.entrada.delete(0, "end")
+        if texto:
+            self.entrada.insert(0, texto)
+        self._fechar()
+
+    # ---------- Filtro ----------
+    def _todos(self):
+        return [rotulo for rotulo, _, _ in self.itens]
+
+    def _filtrar(self, texto):
+        texto = texto.strip()
+        if not texto or texto in self._todos():
+            return self._todos()
+        busca = _normalizar(texto)
+        busca_doc = re.sub(r"[^0-9a-z]", "", busca)
+        achados = []
+        for rotulo, nome, doc in self.itens:
+            if busca in nome or (busca_doc and busca_doc in doc):
+                achados.append(rotulo)
+        return achados
+
+    # ---------- Lista suspensa ----------
+    def _popup_aberto(self):
+        return self.popup is not None and self.popup.winfo_exists()
+
+    def _abrir(self, rotulos):
+        if not rotulos:
+            self._fechar()
+            return
+        if not self._popup_aberto():
+            self.popup = tk.Toplevel(self.winfo_toplevel())
+            self.popup.overrideredirect(True)
+            self.popup.attributes("-topmost", True)
+            self.lista = tk.Listbox(
+                self.popup, activestyle="none", exportselection=False,
+                bg="#2b2b2b", fg="white", selectbackground="#1f6aa5",
+                selectforeground="white", highlightthickness=1,
+                highlightbackground="#565b5e", highlightcolor="#565b5e",
+                borderwidth=0, font=("Arial", 11),
+            )
+            self.lista.pack(fill="both", expand=True)
+            self.lista.bind("<Button-1>", self._clicar_na_lista)
+
+        self.lista.delete(0, "end")
+        for rotulo in rotulos:
+            self.lista.insert("end", rotulo)
+        self.lista.configure(height=min(len(rotulos), 8))
+        self.popup.update_idletasks()
+
+        x = self.entrada.winfo_rootx()
+        y = self.entrada.winfo_rooty() + self.entrada.winfo_height() + 2
+        largura = self.entrada.winfo_width() + self.botao.winfo_width() + 4
+        altura = self.lista.winfo_reqheight()
+        self.popup.geometry(f"{largura}x{altura}+{x}+{y}")
+        self.popup.lift()
+
+    def _fechar(self):
+        if self._popup_aberto():
+            self.popup.destroy()
+        self.popup = None
+        self.lista = None
+
+    def _alternar_lista(self):
+        if self._popup_aberto():
+            self._fechar()
+            return
+        self.entrada.focus_set()
+        self._abrir(self._filtrar(self.entrada.get()))
+
+    def _escolher(self, rotulo):
+        self.set(rotulo)
+        self.entrada.focus_set()
+
+    # ---------- Eventos ----------
+    def _ao_digitar(self, evento):
+        if evento.keysym in ("Down", "Up", "Return", "Escape", "Tab",
+                             "Left", "Right", "Home", "End",
+                             "Shift_L", "Shift_R", "Control_L", "Control_R"):
+            return
+        self._abrir(self._filtrar(self.entrada.get()))
+
+    def _mover(self, passo):
+        if not self._popup_aberto():
+            self._abrir(self._filtrar(self.entrada.get()))
+        if not self._popup_aberto():
+            return "break"
+        total = self.lista.size()
+        atual = self.lista.curselection()
+        if atual:
+            novo = atual[0] + passo
+        else:
+            novo = 0 if passo > 0 else total - 1
+        novo = max(0, min(novo, total - 1))
+        self.lista.selection_clear(0, "end")
+        self.lista.selection_set(novo)
+        self.lista.see(novo)
+        return "break"
+
+    def _confirmar(self, evento=None):
+        if not self._popup_aberto():
+            return
+        selecionado = self.lista.curselection()
+        if selecionado:
+            self._escolher(self.lista.get(selecionado[0]))
+        elif self.lista.size() == 1:
+            self._escolher(self.lista.get(0))
+        return "break"
+
+    def _clicar_na_lista(self, evento):
+        indice = self.lista.nearest(evento.y)
+        if 0 <= indice < self.lista.size():
+            self._escolher(self.lista.get(indice))
+        return "break"
+
+    def _clique_fora(self, evento):
+        if not self._popup_aberto():
+            return
+        alvo = self.winfo_containing(evento.x_root, evento.y_root)
+        if alvo is not None and str(alvo).startswith(str(self)):
+            return
+        self._fechar()
+
+    def _janela_mexeu(self, evento):
+        if evento.widget is self.winfo_toplevel():
+            self._fechar()
+
+    def _fechar_sem_foco(self):
+        try:
+            if not self.winfo_exists():
+                return
+            foco = self.focus_get()
+            if foco is not None and (foco is self.lista or str(foco).startswith(str(self))):
+                return
+        except Exception:
+            pass
+        self._fechar()
 
 class FormularioEquipamento(ctk.CTkFrame):
     """Formulário usado no cadastro novo e na janela de edição."""
@@ -20,7 +207,7 @@ class FormularioEquipamento(ctk.CTkFrame):
         self.columnconfigure((0, 1), weight=1)
 
         self._rotulo("Cliente *", 0, 0)
-        self.campo_cliente = ctk.CTkComboBox(self, values=[], state="readonly")
+        self.campo_cliente = SeletorCliente(self)
         self.campo_cliente.grid(row=1, column=0, sticky="ew", padx=5)
 
         self._rotulo("Tipo *", 0, 1)
@@ -65,21 +252,19 @@ class FormularioEquipamento(ctk.CTkFrame):
         atual = self.campo_cliente.get()
         self.rotulo_para_id = {}
         self.id_para_rotulo = {}
-        clientes = cliente.listar_nomes()
+        itens = []
 
-        repeticoes = {}
-        for _, nome in clientes:
-            repeticoes[nome] = repeticoes.get(nome, 0) + 1
+        clientes = cliente.listar_para_selecao()
+        rotulos = [f"{nome} - {doc}" if doc else nome for _, nome, doc in clientes]
 
-        for id_, nome in clientes:
-            if repeticoes[nome] > 1:
-                rotulo = f"{nome} (nº {id_})"
-            else:
-                rotulo = nome
+        for (id_, nome, doc), rotulo in zip(clientes, rotulos):
+            if rotulos.count(rotulo) > 1:
+                rotulo = f"{rotulo} (nº {id_})"
             self.rotulo_para_id[rotulo] = id_
             self.id_para_rotulo[id_] = rotulo
+            itens.append((rotulo, nome, doc or ""))
 
-        self.campo_cliente.configure(values=list(self.rotulo_para_id))
+        self.campo_cliente.carregar(itens)
         if atual not in self.rotulo_para_id:
             self.campo_cliente.set("")
 

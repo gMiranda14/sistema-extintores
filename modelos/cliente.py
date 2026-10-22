@@ -51,3 +51,10 @@ def buscar_por_id(id_cliente):
 def listar_nomes():
     with conectar() as conn:
         return conn.execute("SELECT id, nome FROM cliente ORDER BY nome").fetchall()
+    
+
+def listar_para_selecao():
+    with conectar() as conn:
+        return conn.execute(
+            "SELECT id, nome, cpf_cnpj FROM cliente ORDER BY nome"
+        ).fetchall()

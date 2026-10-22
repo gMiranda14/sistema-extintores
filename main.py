@@ -1,3 +1,6 @@
+import ctypes
+from pathlib import Path
+
 import customtkinter as ctk
 from banco.conexao import criar_tabelas
 from telas.tela_clientes import TelaClientes
@@ -7,6 +10,13 @@ criar_tabelas()
 ctk.set_appearance_mode("dark")
 
 COR_ATIVA = "#1f6aa5"
+ICONE = Path(__file__).parent / "assets" / "logo.ico"
+
+# Faz a barra de tarefas mostrar o ícone do sistema, e não o do Python
+try:
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("sistema.extintores.app")
+except Exception:
+    pass
 
 
 class Aplicativo(ctk.CTk):
@@ -14,6 +24,8 @@ class Aplicativo(ctk.CTk):
         super().__init__()
         self.title("Sistema de Extintores")
         self.geometry("1150x720")
+        if ICONE.exists():
+            self.after(250, lambda: self.iconbitmap(str(ICONE)))
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
 
