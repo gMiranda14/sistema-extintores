@@ -5,6 +5,7 @@ import customtkinter as ctk
 from banco.conexao import criar_tabelas
 from telas.tela_clientes import TelaClientes
 from telas.tela_equipamentos import TelaEquipamentos
+from telas.tela_vencimentos import TelaVencimentos
 
 criar_tabelas()
 ctk.set_appearance_mode("dark")
@@ -41,6 +42,7 @@ class Aplicativo(ctk.CTk):
         self.area.rowconfigure(0, weight=1)
 
         self.telas = {
+            "Vencimentos": TelaVencimentos(self.area),
             "Clientes": TelaClientes(self.area),
             "Equipamentos": TelaEquipamentos(self.area),
         }
@@ -55,7 +57,7 @@ class Aplicativo(ctk.CTk):
             botao.pack(padx=15, pady=4)
             self.botoes[nome] = botao
 
-        self.mostrar("Clientes")
+        self.mostrar("Vencimentos")
 
     def mostrar(self, nome):
         for n, botao in self.botoes.items():

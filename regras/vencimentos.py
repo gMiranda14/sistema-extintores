@@ -41,3 +41,16 @@ def situacao(vencimento, hoje=None):
     if vencimento <= hoje + timedelta(days=DIAS_ALERTA):
         return "Vence em breve"
     return "Em dia"
+
+def dias_restantes(vencimento, hoje=None):
+    hoje = hoje or date.today()
+    return (vencimento - hoje ).days
+
+def texto_prazo(dias):
+    if dias == 0:
+        return "Vence hoje"
+    quantidade = abs(dias)
+    unidade = "dia" if quantidade == 1 else "dias"
+    if dias > 0:
+        return f"Vence em {quantidade} {unidade}"
+    return f"Venceu há {quantidade} {unidade}"

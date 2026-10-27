@@ -52,3 +52,14 @@ def buscar_por_id(id_equipamento):
             (id_equipamento,),
         )
         return cursor.fetchone()
+
+def listar_com_contato():
+    with conectar() as conn:
+        cursor = conn.execute(
+            """SELECT e.id, c.nome, c.telefone, e.tipo, e.descricao,
+                      e.capacidade, e.numero_serie, e.data_referencia
+               FROM equipamento e
+               JOIN cliente c ON c.id = e.cliente_id
+               WHERE e.data_referencia IS NOT NULL"""
+        )
+        return cursor.fetchall()
