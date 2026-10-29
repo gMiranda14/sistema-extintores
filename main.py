@@ -5,6 +5,7 @@ import customtkinter as ctk
 from banco.conexao import criar_tabelas
 from telas.tela_clientes import TelaClientes
 from telas.tela_equipamentos import TelaEquipamentos
+from telas.tela_pagamentos import TelaPagamentos
 from telas.tela_vencimentos import TelaVencimentos
 
 criar_tabelas()
@@ -45,6 +46,7 @@ class Aplicativo(ctk.CTk):
             "Vencimentos": TelaVencimentos(self.area),
             "Clientes": TelaClientes(self.area),
             "Equipamentos": TelaEquipamentos(self.area),
+            "Pagamentos": TelaPagamentos(self.area),
         }
         self.botoes = {}
         for nome, tela in self.telas.items():

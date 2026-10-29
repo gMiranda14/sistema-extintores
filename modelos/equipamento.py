@@ -63,3 +63,14 @@ def listar_com_contato():
                WHERE e.data_referencia IS NOT NULL"""
         )
         return cursor.fetchall()
+
+
+def listar_do_cliente(cliente_id):
+    with conectar() as conn:
+        cursor = conn.execute(
+            """SELECT id, tipo, descricao, capacidade, numero_serie
+               FROM equipamento WHERE cliente_id=?
+               ORDER BY tipo, descricao""",
+               (cliente_id),
+        )
+        return cursor.fetchall()

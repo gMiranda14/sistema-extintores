@@ -228,6 +228,10 @@ class TelaClientes(ctk.CTkFrame):
         self._montar_lista()
         self.carregar_lista()
 
+    def atualizar(self):
+        """Chamada pelo menu sempre que a tela é aberta."""
+        self.carregar_lista()
+
     def _montar_cadastro(self):
         ctk.CTkLabel(
             self, text="Novo cliente", font=("Arial", 20, "bold")

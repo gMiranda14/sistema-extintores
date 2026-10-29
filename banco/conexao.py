@@ -3,10 +3,12 @@ from pathlib import Path
 
 CAMINHO = Path(__file__).parent / "dados.db"
 
+
 def conectar():
     conn = sqlite3.connect(CAMINHO)
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
 
 def criar_tabelas():
     with conectar() as conn:
@@ -36,6 +38,7 @@ def criar_tabelas():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             cliente_id INTEGER NOT NULL REFERENCES cliente(id),
             forma TEXT,
+            data_servico TEXT,
             data_vencimento TEXT,
             data_pagamento TEXT,
             numero_nf TEXT
@@ -51,3 +54,8 @@ def criar_tabelas():
             valor_unitario REAL NOT NULL
         );
         """)
+
+        # Bancos criados antes desta versão não têm a coluna data_servico
+        colunas = [linha[1] for linha in conn.execute("PRAGMA table_info(pagamento)")]
+        if "data_servico" not in colunas:
+            conn.execute("ALTER TABLE pagamento ADD COLUMN data_servico TEXT")
