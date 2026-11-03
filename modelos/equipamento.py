@@ -71,6 +71,6 @@ def listar_do_cliente(cliente_id):
             """SELECT id, tipo, descricao, capacidade, numero_serie
                FROM equipamento WHERE cliente_id=?
                ORDER BY tipo, descricao""",
-               (cliente_id),
+            (cliente_id,),
         )
         return cursor.fetchall()

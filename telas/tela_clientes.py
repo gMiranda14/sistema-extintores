@@ -11,11 +11,8 @@ CAMPOS = [
     ("endereco", "Endereço"),
     ("telefone", "Telefone"),
     ("email", "E-mail"),
-    ("forma_pagamento", "Forma de pagamento"),
-    ("ultimo_valor", "Último valor cobrado (R$)"),
 ]
 CHAVES = [chave for chave, _ in CAMPOS]
-FORMAS = ["Dinheiro", "PIX", "Boleto", "Cartão de débito", "Cartão de crédito"]
 PLACEHOLDERS = {"CPF": "000.000.000-00", "CNPJ": "00.000.000/0000-00"}
 ICONE_EDITAR = "✎"
 ICONE_EXCLUIR = "🗑"
@@ -38,9 +35,6 @@ class FormularioCliente(ctk.CTkFrame):
             )
             if chave == "cpf_cnpj":
                 campo = self._criar_campo_documento()
-            elif chave == "forma_pagamento":
-                campo = ctk.CTkComboBox(self, values=FORMAS, state="readonly")
-                campo.set("")
             else:
                 campo = ctk.CTkEntry(self)
             campo.grid(row=linha + 1, column=coluna, sticky="ew", padx=5)
@@ -78,25 +72,18 @@ class FormularioCliente(ctk.CTkFrame):
         for chave, valor in zip(CHAVES, linha):
             if valor is None:
                 continue
-            if chave == "forma_pagamento":
-                self.entradas[chave].set(valor)
-            elif chave == "cpf_cnpj":
+            if chave == "cpf_cnpj":
                 limpo = re.sub(r"[^0-9A-Za-z]", "", valor)
                 tipo = "CNPJ" if len(limpo) == 14 else "CPF"
                 self.tipo.set(tipo)
                 self._mudar_tipo(tipo)
                 self.doc.insert(0, valor)
-            elif chave == "ultimo_valor":
-                self.entradas[chave].insert(0, f"{valor:.2f}".replace(".", ","))
             else:
                 self.entradas[chave].insert(0, valor)
 
     def limpar(self):
-        for chave, campo in self.entradas.items():
-            if chave == "forma_pagamento":
-                campo.set("")
-            else:
-                campo.delete(0, "end")
+        for campo in self.entradas.values():
+            campo.delete(0, "end")
         self.tipo.set("CPF")
         self.doc.configure(placeholder_text=PLACEHOLDERS["CPF"])
 
@@ -137,25 +124,10 @@ class FormularioCliente(ctk.CTkFrame):
             )
             return None
 
-        texto_valor = valores["ultimo_valor"].replace(",", ".")
-        if texto_valor:
-            try:
-                valor = float(texto_valor)
-            except ValueError:
-                messagebox.showwarning(
-                    "Atenção", "O último valor deve ser um número.", parent=janela
-                )
-                return None
-        else:
-            valor = None
-
         return (
             valores["nome"], valores["cpf_cnpj"], valores["endereco"],
-            valores["telefone"], valores["email"], valores["forma_pagamento"],
-            valor,
+            valores["telefone"], valores["email"],
         )
-
-
 class JanelaEdicao(ctk.CTkToplevel):
     """Janela que abre ao clicar num cliente da lista."""
 
@@ -276,7 +248,7 @@ class TelaClientes(ctk.CTkFrame):
             "nome": "Nome",
             "cpf_cnpj": "CPF/CNPJ",
             "telefone": "Telefone",
-            "forma": "Forma de pagamento",
+            "forma": "Última forma",
             "valor": "Último valor",
             "acoes": "Ações",
         }

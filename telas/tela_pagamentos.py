@@ -75,6 +75,7 @@ class JanelaPagamento(ctk.CTkToplevel):
         self.id_para_rotulo = {}
         self.equipamentos = {}
         self.rotulo_do_equipamento = {}
+        self.forma_automatica = False
 
         self.title("Editar pagamento" if id_pagamento else "Novo pagamento")
         self.geometry("920x700")
@@ -118,11 +119,13 @@ class JanelaPagamento(ctk.CTkToplevel):
         quadro.columnconfigure((0, 1, 2, 3), weight=1, uniform="col")
 
         self._rotulo(quadro, "Cliente *", 0, 0, 2)
-        self.campo_cliente = SeletorClienteAviso(quadro, self._recarregar_equipamentos)
+        self.campo_cliente = SeletorClienteAviso(quadro, self._ao_escolher_cliente)
         self.campo_cliente.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5)
 
         self._rotulo(quadro, "Forma de pagamento *", 0, 2, 2)
-        self.campo_forma = ctk.CTkComboBox(quadro, values=FORMAS, state="readonly")
+        self.campo_forma = ctk.CTkComboBox(
+            quadro, values=FORMAS, state="readonly", command=self._forma_escolhida
+        )
         self.campo_forma.set("")
         self.campo_forma.grid(row=1, column=2, columnspan=2, sticky="ew", padx=5)
 
@@ -153,7 +156,9 @@ class JanelaPagamento(ctk.CTkToplevel):
         self.campo_servico.grid(row=1, column=0, padx=5)
 
         self._rotulo(linha, "Equipamento", 0, 1)
-        self.campo_equip = ctk.CTkComboBox(linha, values=[], state="readonly")
+        self.campo_equip = ctk.CTkComboBox(
+            linha, values=[], state="readonly", command=self._equipamento_escolhido
+        )
         self.campo_equip.set("")
         self.campo_equip.grid(row=1, column=1, sticky="ew", padx=5)
 
@@ -227,6 +232,21 @@ class JanelaPagamento(ctk.CTkToplevel):
             itens.append((rotulo, nome, doc or ""))
         self.campo_cliente.carregar(itens)
 
+    def _forma_escolhida(self, _valor=None):
+        self.forma_automatica = False
+
+    def _ao_escolher_cliente(self):
+        self._recarregar_equipamentos()
+        # Em pagamento novo, sugere a forma que o cliente usou da última vez
+        if self.id_pagamento is None and (not self.campo_forma.get() or self.forma_automatica):
+            ultima = pagamento.ultima_forma_do_cliente(self._cliente_escolhido())
+            if ultima in FORMAS:
+                self.campo_forma.set(ultima)
+                self.forma_automatica = True
+            elif self.forma_automatica:
+                self.campo_forma.set("")
+                self.forma_automatica = False
+
     def _cliente_escolhido(self):
         return self.rotulo_para_id.get(self.campo_cliente.get())
 
@@ -243,13 +263,33 @@ class JanelaPagamento(ctk.CTkToplevel):
                 self.equipamentos[rotulo] = linha[0]
                 self.rotulo_do_equipamento[linha[0]] = rotulo
         self.campo_equip.configure(values=list(self.equipamentos))
-        self.campo_equip.set("")
+        self._limpar_equipamento()
+
+    def _limpar_equipamento(self):
+        """Esvazia o campo Equipamento, explicando quando não há o que escolher."""
+        if self._cliente_escolhido() is None:
+            self.campo_equip.set("Escolha o cliente primeiro")
+        elif not self.equipamentos:
+            self.campo_equip.set("Cliente sem equipamento cadastrado")
+        else:
+            self.campo_equip.set("")
+
+    def _equipamento_escolhido(self, rotulo):
+        equipamento_id = self.equipamentos.get(rotulo)
+        tipo = SERVICOS.get(self.campo_servico.get())
+        if equipamento_id is None or tipo is None or self.campo_valor.get().strip():
+            return
+        valor = pagamento.ultimo_valor_do_equipamento(equipamento_id, tipo)
+        if valor is not None:
+            self.campo_valor.insert(0, f"{valor:.2f}".replace(".", ","))
 
     def _servico_mudou(self, _valor=None):
         tipo = SERVICOS.get(self.campo_servico.get())
         usa_equipamento = tipo in COM_EQUIPAMENTO
         self.campo_equip.configure(state="readonly" if usa_equipamento else "disabled")
-        if not usa_equipamento:
+        if usa_equipamento:
+            self._limpar_equipamento()
+        else:
             self.campo_equip.set("")
         self.campo_qtd.configure(state="normal")
         self.campo_qtd.delete(0, "end")
@@ -315,7 +355,8 @@ class JanelaPagamento(ctk.CTkToplevel):
         })
         self.campo_desc.delete(0, "end")
         self.campo_valor.delete(0, "end")
-        self.campo_equip.set("")
+        if tipo in COM_EQUIPAMENTO:
+            self._limpar_equipamento()
         self._atualizar_itens()
 
     def _remover_item(self):
@@ -480,6 +521,13 @@ class TelaPagamentos(ctk.CTkFrame):
         self.busca.grid(row=0, column=1, sticky="ew")
         self.busca.bind("<KeyRelease>", lambda evento: self.carregar_lista())
 
+        self.filtro_forma = ctk.CTkComboBox(
+            barra, values=["Todas as formas"] + FORMAS, state="readonly",
+            width=170, command=lambda valor: self.carregar_lista(),
+        )
+        self.filtro_forma.set("Todas as formas")
+        self.filtro_forma.grid(row=0, column=2, padx=(10, 0))
+
     def _montar_acoes(self):
         barra = ctk.CTkFrame(self, fg_color="transparent")
         barra.pack(side="bottom", fill="x", padx=15, pady=(0, 15))
@@ -562,6 +610,7 @@ class TelaPagamentos(ctk.CTkFrame):
             self.registros.append({
                 "id": id_,
                 "cliente": nome,
+                "forma": forma or "",
                 "status": status,
                 "total": total,
                 "ordem": (data_servico or "", id_),
@@ -593,6 +642,7 @@ class TelaPagamentos(ctk.CTkFrame):
     def carregar_lista(self):
         filtro = self.filtro.get()
         busca = _normalizar(self.busca.get().strip())
+        forma = self.filtro_forma.get()
         status_do_filtro = {"Pendentes": "Pendente", "Atrasados": "Atrasado", "Pagos": "Pago"}
 
         for linha in self.tabela.get_children():
@@ -601,6 +651,8 @@ class TelaPagamentos(ctk.CTkFrame):
         mostrados = 0
         for registro in self.registros:
             if filtro != "Todos" and registro["status"] != status_do_filtro[filtro]:
+                continue
+            if forma != "Todas as formas" and registro["forma"] != forma:
                 continue
             if busca and busca not in registro["busca"]:
                 continue

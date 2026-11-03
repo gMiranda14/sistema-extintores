@@ -39,8 +39,6 @@ def inserir(dados, itens):
         id_pagamento = cursor.lastrowid
         _gravar_itens(conn, id_pagamento, itens)
         _renovar_equipamentos(conn, itens, dados[2])
-        total = sum(round(i["quantidade"] * i["valor_unitario"], 2) for i in itens)
-        conn.execute("UPDATE cliente SET ultimo_valor=? WHERE id=?", (total, dados[0]))
         return id_pagamento
 
 
@@ -99,3 +97,26 @@ def buscar(id_pagamento):
             (id_pagamento,),
         ).fetchall()
         return dados, itens
+
+
+def ultima_forma_do_cliente(cliente_id):
+    """Forma de pagamento do pagamento mais recente do cliente, ou None."""
+    with conectar() as conn:
+        linha = conn.execute(
+            """SELECT forma FROM pagamento WHERE cliente_id=?
+               ORDER BY COALESCE(data_servico, '') DESC, id DESC LIMIT 1""",
+            (cliente_id,),
+        ).fetchone()
+        return linha[0] if linha else None
+
+
+def ultimo_valor_do_equipamento(equipamento_id, tipo_servico):
+    """Último valor unitário cobrado deste equipamento neste tipo de serviço, ou None."""
+    with conectar() as conn:
+        linha = conn.execute(
+            """SELECT valor_unitario FROM item_pagamento
+               WHERE equipamento_id=? AND tipo_servico=?
+               ORDER BY id DESC LIMIT 1""",
+            (equipamento_id, tipo_servico),
+        ).fetchone()
+        return linha[0] if linha else None
