@@ -1,12 +1,16 @@
 import ctypes
 from pathlib import Path
+from tkinter import messagebox
 
 import customtkinter as ctk
 from banco.conexao import criar_tabelas
+from regras import backup
+from telas.tela_backup import TelaBackup
 from telas.tela_clientes import TelaClientes
 from telas.tela_equipamentos import TelaEquipamentos
 from telas.tela_pagamentos import TelaPagamentos
 from telas.tela_vencimentos import TelaVencimentos
+
 
 criar_tabelas()
 ctk.set_appearance_mode("dark")
@@ -26,6 +30,7 @@ class Aplicativo(ctk.CTk):
         super().__init__()
         self.title("Sistema de Extintores")
         self.geometry("1150x720")
+        self.protocol("WM_DELETE_WINDOW", self._ao_fechar)
         if ICONE.exists():
             self.after(250, lambda: self.iconbitmap(str(ICONE)))
         self.columnconfigure(1, weight=1)
@@ -47,6 +52,7 @@ class Aplicativo(ctk.CTk):
             "Clientes": TelaClientes(self.area),
             "Equipamentos": TelaEquipamentos(self.area),
             "Pagamentos": TelaPagamentos(self.area),
+            "Backup": TelaBackup(self.area),
         }
         self.botoes = {}
         for nome, tela in self.telas.items():
@@ -60,6 +66,19 @@ class Aplicativo(ctk.CTk):
             self.botoes[nome] = botao
 
         self.mostrar("Vencimentos")
+
+    def _ao_fechar(self):
+        try:
+            erro = backup.backup_automatico()
+        except Exception as falha:
+            erro = str(falha)
+        if erro:
+            messagebox.showwarning(
+                "Backup automático",
+                f"Não foi possível fazer o backup automático:\n{erro}\n\n"
+                "O programa será fechado mesmo assim.",
+            )
+        self.destroy()
 
     def mostrar(self, nome):
         for n, botao in self.botoes.items():

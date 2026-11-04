@@ -1,3 +1,9 @@
 venv/
 __pycache__/
 *.db
+config.json
+*.xlsx
+*.xls
+*.csv
+dados_reais/
+assets/
