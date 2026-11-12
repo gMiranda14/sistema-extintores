@@ -277,7 +277,7 @@ class TelaClientes(ctk.CTkFrame):
             valor_txt = f"R$ {valor:.2f}".replace(".", ",") if valor is not None else ""
             self.tabela.insert(
                 "", "end", iid=str(id_),
-                values=(nome, cpf, telefone, forma, valor_txt, ICONES_TEXTO),
+                values=(nome, cpf or "", telefone or "", forma or "", valor_txt, ICONES_TEXTO),
             )
 
     # ---------- Cliques na tabela ----------
