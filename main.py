@@ -10,6 +10,7 @@ from telas.tela_clientes import TelaClientes
 from telas.tela_equipamentos import TelaEquipamentos
 from telas.tela_pagamentos import TelaPagamentos
 from telas.tela_vencimentos import TelaVencimentos
+from telas.estilo import aplicar_estilo_tabelas
 
 
 criar_tabelas()
@@ -65,6 +66,7 @@ class Aplicativo(ctk.CTk):
             botao.pack(padx=15, pady=4)
             self.botoes[nome] = botao
 
+        aplicar_estilo_tabelas()
         self.mostrar("Vencimentos")
 
     def _ao_fechar(self):
