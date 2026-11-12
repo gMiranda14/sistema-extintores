@@ -7,6 +7,7 @@ from tkinter import ttk, messagebox
 import customtkinter as ctk
 from modelos import cliente, equipamento
 from regras import validadores, vencimentos
+from telas.estilo import TAMANHO_FONTE_LISTA
 
 TIPOS = {"Extintor": "extintor", "Mangueira": "mangueira"}
 NOMES_TIPO = {valor: nome for nome, valor in TIPOS.items()}
@@ -98,7 +99,7 @@ class SeletorCliente(ctk.CTkFrame):
                 bg="#2b2b2b", fg="white", selectbackground="#1f6aa5",
                 selectforeground="white", highlightthickness=1,
                 highlightbackground="#565b5e", highlightcolor="#565b5e",
-                borderwidth=0, font=("Arial", 11),
+                borderwidth=0, font=("Arial", TAMANHO_FONTE_LISTA),
             )
             self.lista.pack(fill="both", expand=True)
             self.lista.bind("<Button-1>", self._clicar_na_lista)

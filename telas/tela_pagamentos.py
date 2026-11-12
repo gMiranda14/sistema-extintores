@@ -21,6 +21,7 @@ FILTROS = ["Todos", "Pendentes", "Atrasados", "Pagos"]
 COR_ATRASADO = "#ff6b6b"
 COR_PENDENTE = "#ffb347"
 COR_PAGO = "#6bcb77"
+COR_TOTAL = "#6fb1ff"
 
 
 def _normalizar(texto):
@@ -492,11 +493,12 @@ class TelaPagamentos(ctk.CTkFrame):
 
         quadro = ctk.CTkFrame(self, fg_color="transparent")
         quadro.pack(fill="x", padx=10)
-        quadro.columnconfigure((0, 1, 2), weight=1)
+        quadro.columnconfigure((0, 1, 2, 3), weight=1)
 
         self.cartoes = {}
         for coluna, (chave, cor) in enumerate([
-            ("pendente", COR_PENDENTE), ("atrasado", COR_ATRASADO), ("recebido", COR_PAGO),
+            ("total", COR_TOTAL), ("pendente", COR_PENDENTE),
+            ("atrasado", COR_ATRASADO), ("pago", COR_PAGO),
         ]):
             cartao = ctk.CTkFrame(quadro)
             cartao.grid(row=0, column=coluna, sticky="ew", padx=5)
@@ -505,6 +507,9 @@ class TelaPagamentos(ctk.CTkFrame):
             legenda = ctk.CTkLabel(cartao, text="")
             legenda.pack(pady=(0, 10))
             self.cartoes[chave] = (valor, legenda)
+
+        self.escopo = ctk.CTkLabel(self, text="", text_color="gray", anchor="w")
+        self.escopo.pack(anchor="w", padx=20, pady=(6, 0))
 
     def _montar_filtros(self):
         barra = ctk.CTkFrame(self, fg_color="transparent")
@@ -591,22 +596,12 @@ class TelaPagamentos(ctk.CTkFrame):
         """Lê o banco de novo. O menu chama isto sempre que a tela é aberta."""
         selecao = self.tabela.selection()
         hoje = date.today()
-        mes_atual = hoje.isoformat()[:7]
-        totais = {"Pendente": [0, 0.0], "Atrasado": [0, 0.0]}
-        recebido_no_mes = 0.0
         self.registros = []
 
         for (id_, nome, forma, data_servico, vencimento, pago,
              nf, total) in pagamento.listar():
             total = round(total, 2)
             status = financeiro.status_pagamento(vencimento, pago, hoje)
-            if status == "Pago":
-                if pago and pago[:7] == mes_atual:
-                    recebido_no_mes += total
-            else:
-                totais[status][0] += 1
-                totais[status][1] += total
-
             self.registros.append({
                 "id": id_,
                 "cliente": nome,
@@ -624,11 +619,6 @@ class TelaPagamentos(ctk.CTkFrame):
 
         self.registros.sort(key=lambda r: r["ordem"], reverse=True)
         self.mapa = {r["id"]: r for r in self.registros}
-
-        pend, atras = totais["Pendente"], totais["Atrasado"]
-        self._cartao("pendente", pend[1], f"A receber - pendentes ({pend[0]})")
-        self._cartao("atrasado", atras[1], f"Atrasados ({atras[0]})")
-        self._cartao("recebido", recebido_no_mes, "Recebido neste mês")
         self.carregar_lista()
         for iid in selecao:
             if self.tabela.exists(iid):
@@ -641,26 +631,50 @@ class TelaPagamentos(ctk.CTkFrame):
 
     def carregar_lista(self):
         filtro = self.filtro.get()
-        busca = _normalizar(self.busca.get().strip())
+        texto_busca = self.busca.get().strip()
+        busca = _normalizar(texto_busca)
         forma = self.filtro_forma.get()
         status_do_filtro = {"Pendentes": "Pendente", "Atrasados": "Atrasado", "Pagos": "Pago"}
+        somas = {"Pendente": [0, 0.0], "Atrasado": [0, 0.0], "Pago": [0, 0.0]}
 
         for linha in self.tabela.get_children():
             self.tabela.delete(linha)
 
         mostrados = 0
         for registro in self.registros:
-            if filtro != "Todos" and registro["status"] != status_do_filtro[filtro]:
-                continue
             if forma != "Todas as formas" and registro["forma"] != forma:
                 continue
             if busca and busca not in registro["busca"]:
+                continue
+            # os cartões somam tudo o que passou pela busca e pela forma,
+            # sem olhar o filtro de situação (Todos, Pendentes, Atrasados, Pagos)
+            soma = somas[registro["status"]]
+            soma[0] += 1
+            soma[1] += registro["total"]
+            if filtro != "Todos" and registro["status"] != status_do_filtro[filtro]:
                 continue
             self.tabela.insert(
                 "", "end", iid=str(registro["id"]),
                 tags=(registro["status"].lower(),), values=registro["valores"],
             )
             mostrados += 1
+
+        quantidade = sum(s[0] for s in somas.values())
+        total = round(sum(s[1] for s in somas.values()), 2)
+        plural = "s" if quantidade != 1 else ""
+        self._cartao("total", total, f"Total ({quantidade} pagamento{plural})")
+        self._cartao("pendente", somas["Pendente"][1], f"Pendentes ({somas['Pendente'][0]})")
+        self._cartao("atrasado", somas["Atrasado"][1], f"Atrasados ({somas['Atrasado'][0]})")
+        self._cartao("pago", somas["Pago"][1], f"Pagos ({somas['Pago'][0]})")
+
+        partes = []
+        if texto_busca:
+            partes.append(f"busca “{texto_busca}”")
+        if forma != "Todas as formas":
+            partes.append(f"forma {forma}")
+        self.escopo.configure(
+            text="Valores de: " + " · ".join(partes) if partes else "Valores de todos os pagamentos"
+        )
 
         if mostrados:
             self.aviso.configure(text="")
