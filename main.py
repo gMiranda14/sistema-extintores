@@ -5,16 +5,13 @@ from tkinter import messagebox
 import customtkinter as ctk
 from banco.conexao import criar_tabelas
 from regras import backup
+from telas.estilo import aplicar_estilo_tabelas
 from telas.tela_backup import TelaBackup
 from telas.tela_clientes import TelaClientes
 from telas.tela_equipamentos import TelaEquipamentos
+from telas.tela_login import JanelaAlterarSenha, JanelaLogin
 from telas.tela_pagamentos import TelaPagamentos
 from telas.tela_vencimentos import TelaVencimentos
-from telas.estilo import aplicar_estilo_tabelas
-
-
-criar_tabelas()
-ctk.set_appearance_mode("dark")
 
 COR_ATIVA = "#1f6aa5"
 ICONE = Path(__file__).parent / "assets" / "logo.ico"
@@ -29,11 +26,40 @@ except Exception:
 class Aplicativo(ctk.CTk):
     def __init__(self):
         super().__init__()
+        self.withdraw()  # a janela principal só aparece depois do login
         self.title("Sistema de Extintores")
         self.geometry("1150x720")
         self.protocol("WM_DELETE_WINDOW", self._ao_fechar)
         if ICONE.exists():
             self.after(250, lambda: self.iconbitmap(str(ICONE)))
+        self.usuario = None
+        self.interface_pronta = False
+        self.after(100, self._pedir_login)
+
+    # ---------- Acesso ----------
+    def _pedir_login(self):
+        self.withdraw()
+        JanelaLogin(self, ao_entrar=self._entrou, ao_cancelar=self._ao_fechar)
+
+    def _entrou(self, usuario):
+        self.usuario = usuario
+        if not self.interface_pronta:
+            self._montar_interface()
+            self.interface_pronta = True
+        self.rotulo_usuario.configure(text=f"Usuário: {usuario['nome']}")
+        self.mostrar("Vencimentos")
+        self.deiconify()
+        self.lift()
+        self.focus_force()
+
+    def _bloquear(self):
+        self._pedir_login()
+
+    def _alterar_senha(self):
+        JanelaAlterarSenha(self, self.usuario["nome"])
+
+    # ---------- Interface ----------
+    def _montar_interface(self):
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
 
@@ -42,6 +68,17 @@ class Aplicativo(ctk.CTk):
         ctk.CTkLabel(menu, text="Extintores", font=("Arial", 20, "bold")).pack(
             padx=20, pady=(20, 25)
         )
+
+        # parte de baixo do menu: usuário, alterar senha e bloquear
+        ctk.CTkButton(
+            menu, text="Bloquear", width=150, fg_color="gray", command=self._bloquear
+        ).pack(side="bottom", padx=15, pady=(4, 15))
+        ctk.CTkButton(
+            menu, text="Alterar senha", width=150, fg_color="transparent",
+            border_width=1, command=self._alterar_senha,
+        ).pack(side="bottom", padx=15, pady=4)
+        self.rotulo_usuario = ctk.CTkLabel(menu, text="", text_color="gray")
+        self.rotulo_usuario.pack(side="bottom", pady=(0, 6))
 
         self.area = ctk.CTkFrame(self, fg_color="transparent")
         self.area.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
@@ -67,7 +104,14 @@ class Aplicativo(ctk.CTk):
             self.botoes[nome] = botao
 
         aplicar_estilo_tabelas()
-        self.mostrar("Vencimentos")
+
+    def mostrar(self, nome):
+        for n, botao in self.botoes.items():
+            botao.configure(fg_color=COR_ATIVA if n == nome else "transparent")
+        tela = self.telas[nome]
+        tela.tkraise()
+        if hasattr(tela, "atualizar"):
+            tela.atualizar()
 
     def _ao_fechar(self):
         try:
@@ -82,13 +126,12 @@ class Aplicativo(ctk.CTk):
             )
         self.destroy()
 
-    def mostrar(self, nome):
-        for n, botao in self.botoes.items():
-            botao.configure(fg_color=COR_ATIVA if n == nome else "transparent")
-        tela = self.telas[nome]
-        tela.tkraise()
-        if hasattr(tela, "atualizar"):
-            tela.atualizar()
+
+def principal():
+    criar_tabelas()
+    ctk.set_appearance_mode("dark")
+    Aplicativo().mainloop()
 
 
-Aplicativo().mainloop()
+if __name__ == "__main__":
+    principal()

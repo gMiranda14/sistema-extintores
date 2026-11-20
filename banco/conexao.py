@@ -53,6 +53,14 @@ def criar_tabelas():
             quantidade INTEGER DEFAULT 1,
             valor_unitario REAL NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS usuario (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome_usuario TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            senha_hash TEXT NOT NULL,
+            codigo_recuperacao_hash TEXT,
+            criado_em TEXT
+        );
         """)
 
         # Bancos criados antes desta versão não têm a coluna data_servico
