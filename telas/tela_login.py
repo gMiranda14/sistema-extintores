@@ -3,6 +3,7 @@ from tkinter import messagebox
 
 import customtkinter as ctk
 from regras import acesso, preferencias
+from telas import estilo
 
 ICONE = Path(__file__).resolve().parent.parent / "assets" / "logo.ico"
 TENTATIVAS_MAXIMAS = 5
@@ -96,6 +97,21 @@ class JanelaLogin(_JanelaBase):
             self._montar_primeiro_acesso()
         else:
             self._montar_login()
+        self._criar_seletor_tema()
+
+    # ---------- Modo claro ou escuro ----------
+    def _criar_seletor_tema(self):
+        quadro = ctk.CTkFrame(self, fg_color="transparent")
+        quadro.place(relx=0.5, rely=1.0, y=-14, anchor="s")
+        ctk.CTkLabel(quadro, text="Tema", text_color="gray").pack(side="left", padx=(0, 8))
+        seletor = ctk.CTkSegmentedButton(
+            quadro, values=["Claro", "Escuro"], width=150, command=self._trocar_tema
+        )
+        seletor.set("Claro" if estilo.modo_claro() else "Escuro")
+        seletor.pack(side="left")
+
+    def _trocar_tema(self, escolha):
+        estilo.trocar_modo("claro" if escolha == "Claro" else "escuro", self.master)
 
     # ---------- Entrar ----------
     def _montar_login(self):

@@ -7,7 +7,7 @@ from tkinter import ttk, messagebox
 import customtkinter as ctk
 from modelos import cliente, equipamento
 from regras import validadores, vencimentos
-from telas.estilo import TAMANHO_FONTE_LISTA
+from telas.estilo import TAMANHO_FONTE_LISTA, paleta
 
 TIPOS = {"Extintor": "extintor", "Mangueira": "mangueira"}
 NOMES_TIPO = {valor: nome for nome, valor in TIPOS.items()}
@@ -94,12 +94,14 @@ class SeletorCliente(ctk.CTkFrame):
             self.popup = tk.Toplevel(self.winfo_toplevel())
             self.popup.overrideredirect(True)
             self.popup.attributes("-topmost", True)
+            cores = paleta()
             self.lista = tk.Listbox(
                 self.popup, activestyle="none", exportselection=False,
-                bg="#2b2b2b", fg="white", selectbackground="#1f6aa5",
-                selectforeground="white", highlightthickness=1,
-                highlightbackground="#565b5e", highlightcolor="#565b5e",
-                borderwidth=0, font=("Arial", TAMANHO_FONTE_LISTA),
+                bg=cores["fundo"], fg=cores["texto"],
+                selectbackground=cores["selecao"], selectforeground=cores["texto_selecao"],
+                highlightthickness=1, highlightbackground=cores["borda"],
+                highlightcolor=cores["borda"], borderwidth=0,
+                font=("Arial", TAMANHO_FONTE_LISTA),
             )
             self.lista.pack(fill="both", expand=True)
             self.lista.bind("<Button-1>", self._clicar_na_lista)

@@ -4,8 +4,8 @@ from tkinter import messagebox
 
 import customtkinter as ctk
 from banco.conexao import criar_tabelas
-from regras import backup
-from telas.estilo import aplicar_estilo_tabelas
+from regras import backup, preferencias
+from telas import estilo
 from telas.tela_backup import TelaBackup
 from telas.tela_clientes import TelaClientes
 from telas.tela_equipamentos import TelaEquipamentos
@@ -14,6 +14,8 @@ from telas.tela_pagamentos import TelaPagamentos
 from telas.tela_vencimentos import TelaVencimentos
 
 COR_ATIVA = "#1f6aa5"
+TEXTO_MENU = ("#1a1a1a", "#DCE4EE")  # (modo claro, modo escuro)
+HOVER_MENU = ("#cfe0f3", "#2d4f6e")
 ICONE = Path(__file__).parent / "assets" / "logo.ico"
 
 # Faz a barra de tarefas mostrar o ícone do sistema, e não o do Python
@@ -34,6 +36,9 @@ class Aplicativo(ctk.CTk):
             self.after(250, lambda: self.iconbitmap(str(ICONE)))
         self.usuario = None
         self.interface_pronta = False
+        self.tela_cheia = False
+        self.bind("<F11>", self._alternar_tela_cheia)
+        self.bind("<Escape>", self._sair_da_tela_cheia)
         self.after(100, self._pedir_login)
 
     # ---------- Acesso ----------
@@ -49,8 +54,33 @@ class Aplicativo(ctk.CTk):
         self.rotulo_usuario.configure(text=f"Usuário: {usuario['nome']}")
         self.mostrar("Vencimentos")
         self.deiconify()
+        if not self.tela_cheia:
+            self._maximizar()
+            self.after(150, self._maximizar)
         self.lift()
         self.focus_force()
+
+    # ---------- Tamanho da janela ----------
+    def _maximizar(self):
+        try:
+            self.state("zoomed")  # Windows
+        except Exception:
+            try:
+                self.attributes("-zoomed", True)  # Linux
+            except Exception:
+                pass
+
+    def _alternar_tela_cheia(self, evento=None):
+        """F11: alterna entre janela maximizada e tela cheia de verdade."""
+        self.tela_cheia = not self.tela_cheia
+        self.attributes("-fullscreen", self.tela_cheia)
+        if not self.tela_cheia:
+            self._maximizar()
+        return "break"
+
+    def _sair_da_tela_cheia(self, evento=None):
+        if self.tela_cheia:
+            self._alternar_tela_cheia()
 
     def _bloquear(self):
         self._pedir_login()
@@ -75,7 +105,7 @@ class Aplicativo(ctk.CTk):
         ).pack(side="bottom", padx=15, pady=(4, 15))
         ctk.CTkButton(
             menu, text="Alterar senha", width=150, fg_color="transparent",
-            border_width=1, command=self._alterar_senha,
+            text_color=TEXTO_MENU, border_width=1, command=self._alterar_senha,
         ).pack(side="bottom", padx=15, pady=4)
         self.rotulo_usuario = ctk.CTkLabel(menu, text="", text_color="gray")
         self.rotulo_usuario.pack(side="bottom", pady=(0, 6))
@@ -97,17 +127,21 @@ class Aplicativo(ctk.CTk):
             tela.grid(row=0, column=0, sticky="nsew")
             botao = ctk.CTkButton(
                 menu, text=nome, anchor="w", width=150,
-                fg_color="transparent", hover_color="#2d4f6e",
+                fg_color="transparent", hover_color=HOVER_MENU, text_color=TEXTO_MENU,
                 command=lambda n=nome: self.mostrar(n),
             )
             botao.pack(padx=15, pady=4)
             self.botoes[nome] = botao
 
-        aplicar_estilo_tabelas()
+        estilo.aplicar_estilo_tabelas(self)
 
     def mostrar(self, nome):
         for n, botao in self.botoes.items():
-            botao.configure(fg_color=COR_ATIVA if n == nome else "transparent")
+            ativo = n == nome
+            botao.configure(
+                fg_color=COR_ATIVA if ativo else "transparent",
+                text_color="white" if ativo else TEXTO_MENU,
+            )
         tela = self.telas[nome]
         tela.tkraise()
         if hasattr(tela, "atualizar"):
@@ -129,7 +163,7 @@ class Aplicativo(ctk.CTk):
 
 def principal():
     criar_tabelas()
-    ctk.set_appearance_mode("dark")
+    estilo.definir_modo(preferencias.obter("modo", "escuro"), salvar=False)
     Aplicativo().mainloop()
 
 
