@@ -3,8 +3,15 @@ import re
 from modelos import usuario
 from regras import senhas
 
+# True: a mensagem diz se o erro foi no usuário ou na senha (mais prático).
+# False: mensagem genérica, que não revela se o usuário existe (mais seguro).
+MENSAGEM_ESPECIFICA = True
+
 MENSAGEM_LOGIN = "Usuário ou senha incorretos."
 MENSAGEM_CODIGO = "Usuário ou código de recuperação incorretos."
+MENSAGEM_USUARIO = "Usuário não encontrado."
+MENSAGEM_SENHA = "Senha incorreta."
+MENSAGEM_CODIGO_ERRADO = "Código de recuperação incorreto."
 _hash_falso = None
 
 
@@ -59,10 +66,10 @@ def entrar(nome, senha):
     linha = usuario.buscar(nome.strip())
     if linha is None:
         _gastar_tempo(senha)
-        return None, MENSAGEM_LOGIN
+        return None, MENSAGEM_USUARIO if MENSAGEM_ESPECIFICA else MENSAGEM_LOGIN
     id_usuario, nome_cadastrado, senha_hash, _ = linha
     if not senhas.verificar(senha, senha_hash):
-        return None, MENSAGEM_LOGIN
+        return None, MENSAGEM_SENHA if MENSAGEM_ESPECIFICA else MENSAGEM_LOGIN
     return {"id": id_usuario, "nome": nome_cadastrado}, None
 
 
@@ -73,10 +80,10 @@ def redefinir_senha(nome, codigo, nova, confirmacao):
     linha = usuario.buscar(nome.strip())
     if linha is None:
         _gastar_tempo(codigo)
-        return None, MENSAGEM_CODIGO
+        return None, MENSAGEM_USUARIO if MENSAGEM_ESPECIFICA else MENSAGEM_CODIGO
     id_usuario, nome_cadastrado, _, codigo_hash = linha
     if not senhas.verificar(senhas.normalizar_codigo(codigo), codigo_hash):
-        return None, MENSAGEM_CODIGO
+        return None, MENSAGEM_CODIGO_ERRADO if MENSAGEM_ESPECIFICA else MENSAGEM_CODIGO
     erro = _validar_nova_senha(nome_cadastrado, nova, confirmacao)
     if erro:
         return None, erro

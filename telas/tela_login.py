@@ -2,7 +2,7 @@ from pathlib import Path
 from tkinter import messagebox
 
 import customtkinter as ctk
-from regras import acesso
+from regras import acesso, preferencias
 
 ICONE = Path(__file__).resolve().parent.parent / "assets" / "logo.ico"
 TENTATIVAS_MAXIMAS = 5
@@ -85,7 +85,7 @@ class JanelaLogin(_JanelaBase):
         primeiro_acesso = not acesso.existe_usuario()
         super().__init__(
             master, "Primeiro acesso" if primeiro_acesso else "Entrar",
-            440, 600 if primeiro_acesso else 500,
+            440, 600 if primeiro_acesso else 540,
         )
         self.ao_entrar = ao_entrar
         self.ao_cancelar = ao_cancelar
@@ -106,6 +106,12 @@ class JanelaLogin(_JanelaBase):
         self.campo_usuario = self._campo("Usuário")
         self.campo_senha = self._campo("Senha", senha=True)
         self._opcao_mostrar_senha()
+        self.lembrar = ctk.CTkCheckBox(self, text="Lembrar meu usuário")
+        self.lembrar.pack(anchor="w", padx=30, pady=(8, 0))
+        lembrado = preferencias.obter("ultimo_usuario")
+        if lembrado:
+            self.campo_usuario.insert(0, lembrado)
+            self.lembrar.select()
         self._criar_mensagem()
         self.botao = ctk.CTkButton(self, text="Entrar", command=self._entrar)
         self.botao.pack(fill="x", padx=30, pady=(12, 6))
@@ -114,7 +120,8 @@ class JanelaLogin(_JanelaBase):
             text_color=COR_LINK, hover=False, command=self._esqueci,
         ).pack()
         self._ligar_enter([self.campo_usuario, self.campo_senha], self._entrar)
-        self.after(250, self.campo_usuario.focus_set)
+        # com o usuário já preenchido, o cursor vai direto para a senha
+        self.after(250, (self.campo_senha if lembrado else self.campo_usuario).focus_set)
 
     def _entrar(self):
         if self.bloqueado:
@@ -130,6 +137,7 @@ class JanelaLogin(_JanelaBase):
         self.update_idletasks()
         usuario, erro = acesso.entrar(nome, senha)
         if erro is None:
+            preferencias.definir("ultimo_usuario", usuario["nome"] if self.lembrar.get() else None)
             self._concluir(usuario)
             return
 
